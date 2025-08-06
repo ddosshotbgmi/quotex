@@ -9,41 +9,37 @@ from dotenv import load_dotenv
 import logging
 import asyncio
 from matplotlib import gridspec
-import random  # For realistic value variation
+import random
 
-# Configure logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables
 load_dotenv()
 TOKEN = os.getenv('TELEGRAM_TOKEN')
-CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+CHAT_IDS = [chat_id.strip() for chat_id in os.getenv('TELEGRAM_CHAT_ID').split(',')]
 TWELVE_DATA_API_KEY = os.getenv('TWELVE_DATA_API_KEY')
 
-# Trading configuration
 BASE_URL = 'https://api.twelvedata.com/'
 PAIRS = ['USD/INR', 'USD/BRL', 'NZD/JPY']
 INTERVAL = '1min'
 OUTPUT_SIZE = 100
 
-# Professional color scheme
 COLORS = {
     'background': '#121212',
     'grid': '#2A2A2A',
     'text': '#E0E0E0',
-    'up': '#00C176',  # Modern green
-    'down': '#FF3B69',  # Modern red
-    'sma10': '#FFA800',  # Gold
-    'sma30': '#00D1FF',  # Cyan
-    'ema20': '#9D5BFF',  # Purple
-    'bollinger': '#00C17680',  # Transparent green
-    'rsi': '#00D1FF',  # Cyan
-    'macd': '#FFA800',  # Gold
-    'signal': '#00D1FF'  # Cyan
+    'up': '#00C176',
+    'down': '#FF3B69',
+    'sma10': '#FFA800',
+    'sma30': '#00D1FF',
+    'ema20': '#9D5BFF',
+    'bollinger': '#00C17680',
+    'rsi': '#00D1FF',
+    'macd': '#FFA800',
+    'signal': '#00D1FF'
 }
 
 def fetch_historical_data(pair):
@@ -71,7 +67,6 @@ def fetch_historical_data(pair):
         for col in ['open', 'high', 'low', 'close']:
             df[col] = pd.to_numeric(df[col])
         
-        # Add small random variations to prevent identical values
         if len(df) > 0:
             variation = 0.0001 * (1 + random.random())
             df['close'] = df['close'] * (1 + (random.random() - 0.5) * variation)
@@ -81,7 +76,6 @@ def fetch_historical_data(pair):
         return generate_realistic_dummy_data(pair)
 
 def generate_realistic_dummy_data(pair):
-    """Generate realistic dummy data when API fails"""
     base_values = {
         'USD/INR': 83.5,
         'USD/BRL': 5.0,
@@ -105,23 +99,19 @@ def generate_realistic_dummy_data(pair):
 
 def create_pro_chart(df, pair):
     try:
-        # Setup figure with dark background
         plt.style.use('dark_background')
         fig = plt.figure(figsize=(12, 10), facecolor=COLORS['background'])
         gs = gridspec.GridSpec(3, 1, height_ratios=[3, 1, 1], hspace=0.1)
         
-        # Calculate indicators with realistic variations
         df['SMA_10'] = df['close'].rolling(10).mean() * (1 + (random.random() - 0.5) * 0.0001)
         df['SMA_30'] = df['close'].rolling(30).mean() * (1 + (random.random() - 0.5) * 0.0001)
         df['EMA_20'] = df['close'].ewm(span=20, adjust=False).mean() * (1 + (random.random() - 0.5) * 0.0001)
         
-        # Bollinger Bands
         df['MA_20'] = df['close'].rolling(20).mean()
         std_dev = df['close'].rolling(20).std()
         df['Upper_BB'] = df['MA_20'] + 2 * std_dev
         df['Lower_BB'] = df['MA_20'] - 2 * std_dev
         
-        # RSI with realistic variation
         delta = df['close'].diff()
         gain = delta.where(delta > 0, 0)
         loss = -delta.where(delta < 0, 0)
@@ -130,17 +120,14 @@ def create_pro_chart(df, pair):
         rs = avg_gain / avg_loss
         df['RSI'] = 100 - (100 / (1 + rs))
         
-        # MACD with realistic variation
         exp12 = df['close'].ewm(span=12, adjust=False).mean()
         exp26 = df['close'].ewm(span=26, adjust=False).mean()
         df['MACD'] = (exp12 - exp26) * (1 + (random.random() - 0.5) * 0.0001)
         df['Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
         
-        # Price Chart
         ax1 = plt.subplot(gs[0])
         ax1.set_facecolor(COLORS['background'])
         
-        # Plot candlesticks with realistic variations
         for i in range(len(df)):
             color = COLORS['up'] if df['close'].iloc[i] >= df['open'].iloc[i] else COLORS['down']
             ax1.plot([df.index[i], df.index[i]], 
@@ -150,7 +137,6 @@ def create_pro_chart(df, pair):
                     [df['open'].iloc[i], df['close'].iloc[i]], 
                     color=color, linewidth=4)
         
-        # Plot indicators
         ax1.plot(df.index, df['SMA_10'], label='SMA 10', color=COLORS['sma10'], linewidth=1.5)
         ax1.plot(df.index, df['SMA_30'], label='SMA 30', color=COLORS['sma30'], linewidth=1.5)
         ax1.plot(df.index, df['EMA_20'], label='EMA 20', color=COLORS['ema20'], linewidth=1.5, linestyle='--')
@@ -161,7 +147,6 @@ def create_pro_chart(df, pair):
         ax1.grid(color=COLORS['grid'], linestyle='--', alpha=0.5)
         ax1.legend(loc='upper left', facecolor=COLORS['background'], edgecolor=COLORS['grid'])
         
-        # RSI Chart
         ax2 = plt.subplot(gs[1], sharex=ax1)
         ax2.set_facecolor(COLORS['background'])
         ax2.plot(df.index, df['RSI'], label='RSI', color=COLORS['rsi'], linewidth=1.5)
@@ -172,7 +157,6 @@ def create_pro_chart(df, pair):
         ax2.set_ylim(0, 100)
         ax2.grid(color=COLORS['grid'], linestyle='--', alpha=0.3)
         
-        # MACD Chart
         ax3 = plt.subplot(gs[2], sharex=ax1)
         ax3.set_facecolor(COLORS['background'])
         ax3.plot(df.index, df['MACD'], label='MACD', color=COLORS['macd'], linewidth=1.5)
@@ -183,7 +167,6 @@ def create_pro_chart(df, pair):
         ax3.axhline(0, color=COLORS['text'], linestyle='--', alpha=0.5)
         ax3.grid(color=COLORS['grid'], linestyle='--', alpha=0.3)
         
-        # Format x-axis
         ax3.xaxis.set_major_locator(plt.MaxNLocator(6))
         ax3.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%H:%M'))
         
@@ -198,7 +181,6 @@ def create_pro_chart(df, pair):
         return None
 
 def get_signal_reason(signal_data):
-    """Generate detailed reason for the signal"""
     rsi = signal_data['rsi']
     price = signal_data['price']
     upper_bb = signal_data['upper_bb']
@@ -229,7 +211,6 @@ async def trading_bot():
     bot = Bot(token=TOKEN)
     logger.info("🚀 Trading Bot Started")
     
-    # Initial alignment with next minute
     now = datetime.now()
     next_minute = (now + timedelta(minutes=1)).replace(second=0, microsecond=0)
     await asyncio.sleep((next_minute - now).total_seconds())
@@ -261,7 +242,6 @@ async def trading_bot():
                         'signal_line': latest['Signal']
                     }
                     
-                    # Determine signal with realistic variations
                     if latest['RSI'] > 70 or latest['close'] > latest['Upper_BB']:
                         signal.update({
                             'action': 'SELL',
@@ -283,7 +263,6 @@ async def trading_bot():
             
             if media and signals:
                 now = datetime.now()
-                # Compact mobile-friendly message format with reasons
                 message = f"""📊 *Quotex FX OTC Signals* {now.strftime('%H:%M')}
 ━━━━━━━━━━━━━━"""
                 
@@ -297,14 +276,17 @@ MACD: {sig['macd']:.4f} | Sig: {sig['signal_line']:.4f}
                 
                 message += "\n━━━━━━━━━━━━━━\n⚠️ On your Own Risk ! /tips"
                 
-                await bot.send_media_group(chat_id=CHAT_ID, media=media)
-                await bot.send_message(
-                    chat_id=CHAT_ID,
-                    text=message,
-                    parse_mode='Markdown'
-                )
+                for chat_id in CHAT_IDS:
+                    try:
+                        await bot.send_media_group(chat_id=chat_id, media=media)
+                        await bot.send_message(
+                            chat_id=chat_id,
+                            text=message,
+                            parse_mode='Markdown'
+                        )
+                    except Exception as e:
+                        logger.error(f"Error sending to chat {chat_id}: {str(e)}")
             
-            # Precise timing control
             elapsed = (datetime.now() - start_time).total_seconds()
             await asyncio.sleep(max(60 - elapsed, 0))
             
